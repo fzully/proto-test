@@ -51,10 +51,15 @@ void TestTextMessageRoundTrip() {
   assert(parsed.conversation_type() == original.conversation_type());
   assert(parsed.sender_id() == original.sender_id());
   assert(parsed.seq() == original.seq());
+  assert(parsed.client_timestamp_ms() == original.client_timestamp_ms());
+  assert(parsed.server_timestamp_ms() == original.server_timestamp_ms());
   assert(parsed.status() == original.status());
   assert(parsed.quote().quoted_message_id() == original.quote().quoted_message_id());
+  assert(parsed.quote().quoted_sender_id() == original.quote().quoted_sender_id());
   assert(parsed.quote().content_preview() == original.quote().content_preview());
   assert(parsed.mentioned_user_ids_size() == original.mentioned_user_ids_size());
+  assert(parsed.mentioned_user_ids(0) == original.mentioned_user_ids(0));
+  assert(parsed.mentioned_user_ids(1) == original.mentioned_user_ids(1));
   assert(parsed.content_case() == ChatMessage::kText);
   assert(parsed.text().body() == original.text().body());
 
