@@ -1,5 +1,8 @@
 #include <string>
 
+#include <google/protobuf/arena.h>
+
+#include "alloc_counter.h"
 #include "benchmark/benchmark.h"
 #include "chat.pb.h"
 #include "message_fixtures.h"
@@ -172,6 +175,44 @@ void BM_ParseMergedItems(benchmark::State& state) {
   state.counters["bytes"] = static_cast<double>(bytes.size());
 }
 BENCHMARK(BM_ParseMergedItems)->Arg(1)->Arg(10)->Arg(100)->Arg(1000);
+
+void BM_ParseTextHeapAllocs(benchmark::State& state) {
+  ChatMessage original = BuildTextMessage();
+  std::string bytes;
+  static_cast<void>(original.SerializeToString(&bytes));
+  ResetAllocCounters();
+  for (auto _ : state) {
+    ChatMessage parsed;
+    static_cast<void>(parsed.ParseFromString(bytes));
+  }
+  state.counters["allocs_per_iter"] =
+      static_cast<double>(GetAllocCount()) / static_cast<double>(state.iterations());
+  state.counters["bytes_per_iter"] =
+      static_cast<double>(GetAllocBytes()) / static_cast<double>(state.iterations());
+}
+BENCHMARK(BM_ParseTextHeapAllocs);
+
+void BM_ParseTextArenaAllocs(benchmark::State& state) {
+  ChatMessage original = BuildTextMessage();
+  std::string bytes;
+  static_cast<void>(original.SerializeToString(&bytes));
+
+  google::protobuf::Arena arena;
+  {
+    ChatMessage* warm = google::protobuf::Arena::Create<ChatMessage>(&arena);
+    static_cast<void>(warm->ParseFromString(bytes));
+  }
+  ResetAllocCounters();
+  for (auto _ : state) {
+    ChatMessage* parsed = google::protobuf::Arena::Create<ChatMessage>(&arena);
+    static_cast<void>(parsed->ParseFromString(bytes));
+  }
+  state.counters["allocs_per_iter"] =
+      static_cast<double>(GetAllocCount()) / static_cast<double>(state.iterations());
+  state.counters["bytes_per_iter"] =
+      static_cast<double>(GetAllocBytes()) / static_cast<double>(state.iterations());
+}
+BENCHMARK(BM_ParseTextArenaAllocs);
 
 }  // namespace
 
