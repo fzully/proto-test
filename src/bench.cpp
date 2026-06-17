@@ -254,6 +254,29 @@ void BM_SerializeToCodedStream(benchmark::State& state) {
 }
 BENCHMARK(BM_SerializeToCodedStream);
 
+void BM_ConcurrentSerializeText(benchmark::State& state) {
+  ChatMessage msg = BuildTextMessage();
+  std::string bytes;
+  for (auto _ : state) {
+    bytes.clear();
+    static_cast<void>(msg.SerializeToString(&bytes));
+  }
+  state.counters["bytes"] = static_cast<double>(bytes.size());
+}
+BENCHMARK(BM_ConcurrentSerializeText)->Threads(1)->Threads(2)->Threads(4)->Threads(8)->Threads(16)->Threads(20);
+
+void BM_ConcurrentParseText(benchmark::State& state) {
+  ChatMessage original = BuildTextMessage();
+  std::string bytes;
+  static_cast<void>(original.SerializeToString(&bytes));
+  for (auto _ : state) {
+    ChatMessage parsed;
+    static_cast<void>(parsed.ParseFromString(bytes));
+  }
+  state.counters["bytes"] = static_cast<double>(bytes.size());
+}
+BENCHMARK(BM_ConcurrentParseText)->Threads(1)->Threads(2)->Threads(4)->Threads(8)->Threads(16)->Threads(20);
+
 }  // namespace
 
 BENCHMARK_MAIN();
