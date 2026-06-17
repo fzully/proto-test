@@ -123,6 +123,56 @@ void BM_ParseLargeId(benchmark::State& state) {
 }
 BENCHMARK(BM_ParseLargeId);
 
+void BM_SerializeMentions(benchmark::State& state) {
+  const int n = static_cast<int>(state.range(0));
+  ChatMessage msg = BuildTextMessageWithMentionCount(n);
+  std::string bytes;
+  for (auto _ : state) {
+    bytes.clear();
+    static_cast<void>(msg.SerializeToString(&bytes));
+  }
+  state.counters["bytes"] = static_cast<double>(bytes.size());
+}
+BENCHMARK(BM_SerializeMentions)->Arg(1)->Arg(10)->Arg(100)->Arg(1000);
+
+void BM_ParseMentions(benchmark::State& state) {
+  const int n = static_cast<int>(state.range(0));
+  ChatMessage original = BuildTextMessageWithMentionCount(n);
+  std::string bytes;
+  static_cast<void>(original.SerializeToString(&bytes));
+  for (auto _ : state) {
+    ChatMessage parsed;
+    static_cast<void>(parsed.ParseFromString(bytes));
+  }
+  state.counters["bytes"] = static_cast<double>(bytes.size());
+}
+BENCHMARK(BM_ParseMentions)->Arg(1)->Arg(10)->Arg(100)->Arg(1000);
+
+void BM_SerializeMergedItems(benchmark::State& state) {
+  const int n = static_cast<int>(state.range(0));
+  ChatMessage msg = BuildMergedForwardMessageWithItemCount(n);
+  std::string bytes;
+  for (auto _ : state) {
+    bytes.clear();
+    static_cast<void>(msg.SerializeToString(&bytes));
+  }
+  state.counters["bytes"] = static_cast<double>(bytes.size());
+}
+BENCHMARK(BM_SerializeMergedItems)->Arg(1)->Arg(10)->Arg(100)->Arg(1000);
+
+void BM_ParseMergedItems(benchmark::State& state) {
+  const int n = static_cast<int>(state.range(0));
+  ChatMessage original = BuildMergedForwardMessageWithItemCount(n);
+  std::string bytes;
+  static_cast<void>(original.SerializeToString(&bytes));
+  for (auto _ : state) {
+    ChatMessage parsed;
+    static_cast<void>(parsed.ParseFromString(bytes));
+  }
+  state.counters["bytes"] = static_cast<double>(bytes.size());
+}
+BENCHMARK(BM_ParseMergedItems)->Arg(1)->Arg(10)->Arg(100)->Arg(1000);
+
 }  // namespace
 
 BENCHMARK_MAIN();
