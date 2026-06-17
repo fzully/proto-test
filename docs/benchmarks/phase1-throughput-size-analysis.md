@@ -3,14 +3,18 @@
 Date: 2026-06-17
 Raw data: `results/phase1-2026-06-17.json`
 
+## Run conditions
+
+This run had `cpu_scaling_enabled: true` and a non-idle host (`load_avg` around 3.4/3.4/2.0) per the JSON `context` block; Google Benchmark itself warns that CPU frequency scaling makes timings noisier and less trustworthy than a dedicated/idle benchmarking environment. The absolute ns/iter and ops/sec figures below should be read with that caveat in mind, though the relative comparisons (text vs merged_forward, serialize vs parse) are large enough to be robust to this noise.
+
 ## Results
 
 | Benchmark | Operation | Message type | Time (ns/iter) | Throughput (ops/sec) | Size (bytes) |
 |---|---|---|---|---|---|
-| BM_SerializeText | serialize | text | 76.23 | 13,121,150 | 117 |
-| BM_ParseText | parse | text | 189.98 | 5,263,259 | 117 |
-| BM_SerializeMergedForward | serialize | merged_forward | 115.34 | 8,669,632 | 162 |
-| BM_ParseMergedForward | parse | merged_forward | 297.48 | 3,364,221 | 162 |
+| BM_SerializeText | serialize | text | 76.23 | 13,118,917 | 117 |
+| BM_ParseText | parse | text | 189.98 | 5,263,734 | 117 |
+| BM_SerializeMergedForward | serialize | merged_forward | 115.34 | 8,669,697 | 162 |
+| BM_ParseMergedForward | parse | merged_forward | 297.48 | 3,361,568 | 162 |
 
 Throughput (ops/sec) = 1e9 / time (ns/iter).
 

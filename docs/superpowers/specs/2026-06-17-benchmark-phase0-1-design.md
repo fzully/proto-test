@@ -69,13 +69,14 @@ proto-test/
 
 ### 2. CMake 改动
 
+- 把现有 `proto_test` 专属的 protobuf 代码生成逻辑提升为共享的 `chat_proto` STATIC library：新增 `add_library(chat_proto STATIC)`，`target_link_libraries(chat_proto PUBLIC protobuf::libprotobuf)`，`protobuf_generate(TARGET chat_proto ...)` 生成 `chat.pb.{h,cc}` 并通过 `target_include_directories(chat_proto PUBLIC ...)` 暴露生成目录。这样只需跑一次 `protoc`，`proto_test` 和 `proto_bench` 都链接同一份编译好的 protobuf 代码，而不是各自重新生成。
+- `proto_test` 改为链接 `chat_proto`（`target_link_libraries(proto_test PRIVATE chat_proto)`），不再自己持有生成逻辑。
 - 新增 `FetchContent_Declare(benchmark, GIT_REPOSITORY https://github.com/google/benchmark.git, GIT_TAG v1.9.1)`。
 - 设置 `BENCHMARK_ENABLE_TESTING OFF`（不需要 Google Benchmark 自带的测试，避免拉 googletest）、`BENCHMARK_ENABLE_GTEST_TESTS OFF`。
 - `message_fixtures.cpp` 直接加进 `proto_test` 和 `proto_bench` 两个 target 各自的 source list（与现有 `CMakeLists.txt` 的极简风格一致，不引入 OBJECT library 这层抽象）。
 - 新增 `proto_bench` executable target：
   - source: `src/bench.cpp` + `message_fixtures.cpp`
-  - link: `protobuf::libprotobuf`、`benchmark::benchmark`
-  - include 目录同 `proto_test`（生成的 `chat.pb.h` 所在目录）。
+  - link: `chat_proto`、`benchmark::benchmark`（通过 `chat_proto` 间接拿到 `protobuf::libprotobuf` 和生成的 `chat.pb.h` 所在的 include 目录，不直接链接 `protobuf::libprotobuf`）。
 
 ### 3. `bench.cpp` 用例
 
