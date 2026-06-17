@@ -56,5 +56,5 @@ set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(benchmark)
 
-add_executable(proto_bench src/bench.cpp src/message_fixtures.cpp)
+add_executable(proto_bench src/bench.cpp src/message_fixtures.cpp src/alloc_counter.cpp)
 target_link_libraries(proto_bench PRIVATE chat_proto benchmark::benchmark)
