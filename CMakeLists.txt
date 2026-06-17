@@ -19,7 +19,7 @@ FetchContent_MakeAvailable(protobuf)
 # the function definition directly from the fetched source tree.
 include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
 
-add_executable(proto_test src/main.cpp)
+add_executable(proto_test src/main.cpp src/message_fixtures.cpp)
 target_link_libraries(proto_test PRIVATE protobuf::libprotobuf)
 
 # protobuf_generate() invokes protoc with --cpp_out pointed at this directory
