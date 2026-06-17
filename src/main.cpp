@@ -124,7 +124,8 @@ void TestMergedForwardRoundTrip() {
   assert(parsed.merged_forward().title() == original.merged_forward().title());
   assert(parsed.merged_forward().items_size() == 2);
 
-  assert(parsed.merged_forward().items(0).message_id() == 101);
+  assert(parsed.merged_forward().items(0).message_id() ==
+         original.merged_forward().items(0).message_id());
   assert(parsed.merged_forward().items(0).sender_id() ==
          original.merged_forward().items(0).sender_id());
   assert(parsed.merged_forward().items(0).timestamp_ms() ==
@@ -134,7 +135,8 @@ void TestMergedForwardRoundTrip() {
 
   assert(parsed.merged_forward().items(1).message_id() ==
          original.merged_forward().items(1).message_id());
-  assert(parsed.merged_forward().items(1).sender_id() == 9);
+  assert(parsed.merged_forward().items(1).sender_id() ==
+         original.merged_forward().items(1).sender_id());
   assert(parsed.merged_forward().items(1).timestamp_ms() ==
          original.merged_forward().items(1).timestamp_ms());
   assert(parsed.merged_forward().items(1).text().body() ==
