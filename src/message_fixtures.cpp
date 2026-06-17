@@ -5,9 +5,9 @@ using im::chat::v1::ForwardedItem;
 using im::chat::v1::MergedForwardContent;
 using im::chat::v1::QuoteInfo;
 
-ChatMessage BuildTextMessage() {
+ChatMessage BuildTextMessageWithId(int64_t message_id) {
   ChatMessage msg;
-  msg.set_message_id(1001);
+  msg.set_message_id(message_id);
   msg.set_client_msg_id("client-uuid-abc123");
   msg.set_conversation_id(555);
   msg.set_conversation_type(im::chat::v1::CONVERSATION_TYPE_GROUP);
@@ -24,6 +24,25 @@ ChatMessage BuildTextMessage() {
 
   msg.add_mentioned_user_ids(7);
   msg.add_mentioned_user_ids(9);
+
+  msg.mutable_text()->set_body("Hello, this is a test message.");
+
+  return msg;
+}
+
+ChatMessage BuildTextMessage() { return BuildTextMessageWithId(1001); }
+
+ChatMessage BuildSparseTextMessage() {
+  ChatMessage msg;
+  msg.set_message_id(1001);
+  msg.set_client_msg_id("client-uuid-abc123");
+  msg.set_conversation_id(555);
+  msg.set_conversation_type(im::chat::v1::CONVERSATION_TYPE_GROUP);
+  msg.set_sender_id(42);
+  msg.set_seq(17);
+  msg.set_client_timestamp_ms(1750000000000);
+  msg.set_server_timestamp_ms(1750000000050);
+  msg.set_status(im::chat::v1::MESSAGE_STATUS_SENT);
 
   msg.mutable_text()->set_body("Hello, this is a test message.");
 
