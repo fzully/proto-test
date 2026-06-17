@@ -12,7 +12,7 @@
 - protobuf 通过 CMake `FetchContent` 拉源码构建（不依赖系统包），需要：
   - `cmake_minimum_required(3.16)`，`CXX_STANDARD 20`
   - `FetchContent_Declare(protobuf ...)`，指向一个稳定 release tag
-  - 设置 `protobuf_ABSL_PROVIDER=module`，让 protobuf 自动拉取并构建其依赖的 Abseil（v22+ 起 protobuf 强制依赖 Abseil）
+  - protobuf v35.1 会通过其自带的 `cmake/abseil-cpp.cmake` 自动以 FetchContent 方式拉取并构建 Abseil，无需额外设置 `protobuf_ABSL_PROVIDER`
   - `protobuf_BUILD_TESTS=OFF`，只构建 `libprotobuf` 本体，不需要 protoc 插件 / gRPC
   - 用 FetchContent 拉下来的 `protoc` 把 `.proto` 编译为 `.pb.h` / `.pb.cc`
 
