@@ -277,6 +277,36 @@ void BM_ConcurrentParseText(benchmark::State& state) {
 }
 BENCHMARK(BM_ConcurrentParseText)->Threads(1)->Threads(2)->Threads(4)->Threads(8)->Threads(16)->Threads(20);
 
+void BM_ParseTruncatedText(benchmark::State& state) {
+  ChatMessage original = BuildTextMessage();
+  std::string full_bytes;
+  static_cast<void>(original.SerializeToString(&full_bytes));
+  const std::string truncated = full_bytes.substr(0, full_bytes.size() / 2);
+  bool last_ok = true;
+  for (auto _ : state) {
+    ChatMessage parsed;
+    last_ok = parsed.ParseFromString(truncated);
+  }
+  state.counters["parse_ok"] = last_ok ? 1.0 : 0.0;
+  state.counters["bytes"] = static_cast<double>(truncated.size());
+}
+BENCHMARK(BM_ParseTruncatedText);
+
+void BM_ParseGarbageText(benchmark::State& state) {
+  ChatMessage original = BuildTextMessage();
+  std::string full_bytes;
+  static_cast<void>(original.SerializeToString(&full_bytes));
+  const std::string garbage(full_bytes.size(), '\xFF');
+  bool last_ok = true;
+  for (auto _ : state) {
+    ChatMessage parsed;
+    last_ok = parsed.ParseFromString(garbage);
+  }
+  state.counters["parse_ok"] = last_ok ? 1.0 : 0.0;
+  state.counters["bytes"] = static_cast<double>(garbage.size());
+}
+BENCHMARK(BM_ParseGarbageText);
+
 }  // namespace
 
 BENCHMARK_MAIN();
