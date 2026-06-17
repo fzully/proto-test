@@ -49,6 +49,15 @@ ChatMessage BuildSparseTextMessage() {
   return msg;
 }
 
+ChatMessage BuildTextMessageWithMentionCount(int mention_count) {
+  ChatMessage msg = BuildTextMessageWithId(1001);
+  msg.clear_mentioned_user_ids();
+  for (int i = 1; i <= mention_count; ++i) {
+    msg.add_mentioned_user_ids(i);
+  }
+  return msg;
+}
+
 ChatMessage BuildMergedForwardMessage() {
   ChatMessage msg;
   msg.set_message_id(2002);
@@ -75,6 +84,32 @@ ChatMessage BuildMergedForwardMessage() {
   item2->set_sender_id(9);
   item2->set_timestamp_ms(1749999999500);
   item2->mutable_text()->set_body("第二条被转发的消息");
+
+  return msg;
+}
+
+ChatMessage BuildMergedForwardMessageWithItemCount(int item_count) {
+  ChatMessage msg;
+  msg.set_message_id(2002);
+  msg.set_client_msg_id("client-uuid-def456");
+  msg.set_conversation_id(777);
+  msg.set_conversation_type(im::chat::v1::CONVERSATION_TYPE_SINGLE);
+  msg.set_sender_id(42);
+  msg.set_seq(18);
+  msg.set_client_timestamp_ms(1750000001000);
+  msg.set_server_timestamp_ms(1750000001050);
+  msg.set_status(im::chat::v1::MESSAGE_STATUS_SENT);
+
+  MergedForwardContent* merged = msg.mutable_merged_forward();
+  merged->set_title("群聊的聊天记录");
+
+  for (int i = 0; i < item_count; ++i) {
+    ForwardedItem* item = merged->add_items();
+    item->set_message_id(101 + i);
+    item->set_sender_id(7);
+    item->set_timestamp_ms(1749999999000 + i);
+    item->mutable_text()->set_body("被转发的消息");
+  }
 
   return msg;
 }
