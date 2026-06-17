@@ -9,6 +9,7 @@ FetchContent_Declare(
   protobuf
   GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
   GIT_TAG v35.1
+  GIT_SHALLOW TRUE
 )
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(protobuf_INSTALL OFF CACHE BOOL "" FORCE)
@@ -40,3 +41,16 @@ target_include_directories(chat_proto PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/generat
 
 add_executable(proto_test src/main.cpp src/message_fixtures.cpp)
 target_link_libraries(proto_test PRIVATE chat_proto)
+
+FetchContent_Declare(
+  benchmark
+  GIT_REPOSITORY https://github.com/google/benchmark.git
+  GIT_TAG v1.9.1
+  GIT_SHALLOW TRUE
+)
+set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(benchmark)
+
+add_executable(proto_bench src/bench.cpp src/message_fixtures.cpp)
+target_link_libraries(proto_bench PRIVATE chat_proto benchmark::benchmark)
