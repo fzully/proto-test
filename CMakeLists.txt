@@ -19,18 +19,24 @@ FetchContent_MakeAvailable(protobuf)
 # the function definition directly from the fetched source tree.
 include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
 
-add_executable(proto_test src/main.cpp src/message_fixtures.cpp)
-target_link_libraries(proto_test PRIVATE protobuf::libprotobuf)
+# chat_proto holds the generated chat.pb.{h,cc} so both proto_test and
+# proto_bench can link the same compiled protobuf code instead of running
+# protoc twice.
+add_library(chat_proto STATIC)
+target_link_libraries(chat_proto PUBLIC protobuf::libprotobuf)
 
 # protobuf_generate() invokes protoc with --cpp_out pointed at this directory
 # but does not create it itself, so it must exist before the build runs.
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated)
 
 protobuf_generate(
-  TARGET proto_test
+  TARGET chat_proto
   PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/proto/chat.proto
   IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/proto
   PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated
 )
 
-target_include_directories(proto_test PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
+target_include_directories(chat_proto PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/generated)
+
+add_executable(proto_test src/main.cpp src/message_fixtures.cpp)
+target_link_libraries(proto_test PRIVATE chat_proto)
