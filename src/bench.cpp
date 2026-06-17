@@ -1,6 +1,9 @@
 #include <string>
+#include <vector>
 
 #include <google/protobuf/arena.h>
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 
 #include "alloc_counter.h"
 #include "benchmark/benchmark.h"
@@ -213,6 +216,43 @@ void BM_ParseTextArenaAllocs(benchmark::State& state) {
       static_cast<double>(GetAllocBytes()) / static_cast<double>(state.iterations());
 }
 BENCHMARK(BM_ParseTextArenaAllocs);
+
+void BM_SerializeToFreshString(benchmark::State& state) {
+  ChatMessage msg = BuildTextMessage();
+  std::size_t last_size = 0;
+  for (auto _ : state) {
+    std::string bytes;
+    static_cast<void>(msg.SerializeToString(&bytes));
+    last_size = bytes.size();
+  }
+  state.counters["bytes"] = static_cast<double>(last_size);
+}
+BENCHMARK(BM_SerializeToFreshString);
+
+void BM_SerializeToPreallocatedArray(benchmark::State& state) {
+  ChatMessage msg = BuildTextMessage();
+  const int size = static_cast<int>(msg.ByteSizeLong());
+  std::vector<char> buffer(static_cast<std::size_t>(size));
+  for (auto _ : state) {
+    bool ok = msg.SerializeToArray(buffer.data(), size);
+    static_cast<void>(ok);
+  }
+  state.counters["bytes"] = static_cast<double>(size);
+}
+BENCHMARK(BM_SerializeToPreallocatedArray);
+
+void BM_SerializeToCodedStream(benchmark::State& state) {
+  ChatMessage msg = BuildTextMessage();
+  const int size = static_cast<int>(msg.ByteSizeLong());
+  std::vector<char> buffer(static_cast<std::size_t>(size));
+  for (auto _ : state) {
+    google::protobuf::io::ArrayOutputStream array_stream(buffer.data(), size);
+    google::protobuf::io::CodedOutputStream coded_stream(&array_stream);
+    static_cast<void>(msg.SerializeToCodedStream(&coded_stream));
+  }
+  state.counters["bytes"] = static_cast<double>(size);
+}
+BENCHMARK(BM_SerializeToCodedStream);
 
 }  // namespace
 
