@@ -596,6 +596,42 @@ void BM_DecodeMergedItemsSbe(benchmark::State& state) {
 }
 BENCHMARK(BM_DecodeMergedItemsSbe)->Arg(1)->Arg(10)->Arg(100)->Arg(1000);
 
+void BM_DecodeTextHeapAllocsSbe(benchmark::State& state) {
+  char buffer[512];
+  const std::size_t len = EncodeTextMessageSbe(buffer, sizeof(buffer));
+  char tmp[256];
+  ResetAllocCounters();
+  for (auto _ : state) {
+    MessageHeader hdr;
+    hdr.wrap(buffer, 0, MessageHeader::sbeSchemaVersion(), sizeof(buffer));
+    TextChatMessage dec;
+    dec.wrapForDecode(buffer, MessageHeader::encodedLength(), hdr.blockLength(), hdr.version(), sizeof(buffer));
+    benchmark::DoNotOptimize(dec.messageId());
+    benchmark::DoNotOptimize(dec.conversationId());
+    benchmark::DoNotOptimize(dec.conversationType());
+    benchmark::DoNotOptimize(dec.senderId());
+    benchmark::DoNotOptimize(dec.seq());
+    benchmark::DoNotOptimize(dec.clientTimestampMs());
+    benchmark::DoNotOptimize(dec.serverTimestampMs());
+    benchmark::DoNotOptimize(dec.status());
+    benchmark::DoNotOptimize(dec.quotedMessageId());
+    benchmark::DoNotOptimize(dec.quotedSenderId());
+    auto& mentions = dec.mentionedUserIds();
+    while (mentions.hasNext()) {
+      benchmark::DoNotOptimize(mentions.next().userId());
+    }
+    benchmark::DoNotOptimize(dec.getClientMsgId(tmp, sizeof(tmp)));
+    benchmark::DoNotOptimize(dec.getContentPreview(tmp, sizeof(tmp)));
+    benchmark::DoNotOptimize(dec.getBody(tmp, sizeof(tmp)));
+  }
+  state.counters["allocs_per_iter"] =
+      static_cast<double>(GetAllocCount()) / static_cast<double>(state.iterations());
+  state.counters["bytes_per_iter"] =
+      static_cast<double>(GetAllocBytes()) / static_cast<double>(state.iterations());
+  state.counters["bytes"] = static_cast<double>(len);
+}
+BENCHMARK(BM_DecodeTextHeapAllocsSbe);
+
 }  // namespace
 
 BENCHMARK_MAIN();
