@@ -632,6 +632,47 @@ void BM_DecodeTextHeapAllocsSbe(benchmark::State& state) {
 }
 BENCHMARK(BM_DecodeTextHeapAllocsSbe);
 
+void BM_ConcurrentEncodeTextSbe(benchmark::State& state) {
+  char buffer[512];
+  std::size_t len = 0;
+  for (auto _ : state) {
+    len = EncodeTextMessageSbe(buffer, sizeof(buffer));
+  }
+  state.counters["bytes"] = static_cast<double>(len);
+}
+BENCHMARK(BM_ConcurrentEncodeTextSbe)->Threads(1)->Threads(2)->Threads(4)->Threads(8)->Threads(16)->Threads(20);
+
+void BM_ConcurrentDecodeTextSbe(benchmark::State& state) {
+  char buffer[512];
+  const std::size_t len = EncodeTextMessageSbe(buffer, sizeof(buffer));
+  char tmp[256];
+  for (auto _ : state) {
+    MessageHeader hdr;
+    hdr.wrap(buffer, 0, MessageHeader::sbeSchemaVersion(), sizeof(buffer));
+    TextChatMessage dec;
+    dec.wrapForDecode(buffer, MessageHeader::encodedLength(), hdr.blockLength(), hdr.version(), sizeof(buffer));
+    benchmark::DoNotOptimize(dec.messageId());
+    benchmark::DoNotOptimize(dec.conversationId());
+    benchmark::DoNotOptimize(dec.conversationType());
+    benchmark::DoNotOptimize(dec.senderId());
+    benchmark::DoNotOptimize(dec.seq());
+    benchmark::DoNotOptimize(dec.clientTimestampMs());
+    benchmark::DoNotOptimize(dec.serverTimestampMs());
+    benchmark::DoNotOptimize(dec.status());
+    benchmark::DoNotOptimize(dec.quotedMessageId());
+    benchmark::DoNotOptimize(dec.quotedSenderId());
+    auto& mentions = dec.mentionedUserIds();
+    while (mentions.hasNext()) {
+      benchmark::DoNotOptimize(mentions.next().userId());
+    }
+    benchmark::DoNotOptimize(dec.getClientMsgId(tmp, sizeof(tmp)));
+    benchmark::DoNotOptimize(dec.getContentPreview(tmp, sizeof(tmp)));
+    benchmark::DoNotOptimize(dec.getBody(tmp, sizeof(tmp)));
+  }
+  state.counters["bytes"] = static_cast<double>(len);
+}
+BENCHMARK(BM_ConcurrentDecodeTextSbe)->Threads(1)->Threads(2)->Threads(4)->Threads(8)->Threads(16)->Threads(20);
+
 }  // namespace
 
 BENCHMARK_MAIN();
