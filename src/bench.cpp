@@ -523,6 +523,79 @@ void BM_DecodeLargeIdSbe(benchmark::State& state) {
 }
 BENCHMARK(BM_DecodeLargeIdSbe);
 
+void BM_EncodeMentionsSbe(benchmark::State& state) {
+  const int n = static_cast<int>(state.range(0));
+  static char buffer[1 << 16];
+  std::size_t len = 0;
+  for (auto _ : state) {
+    len = EncodeTextMessageWithMentionCountSbe(buffer, sizeof(buffer), n);
+  }
+  state.counters["bytes"] = static_cast<double>(len);
+}
+BENCHMARK(BM_EncodeMentionsSbe)->Arg(1)->Arg(10)->Arg(100)->Arg(1000);
+
+void BM_DecodeMentionsSbe(benchmark::State& state) {
+  const int n = static_cast<int>(state.range(0));
+  static char buffer[1 << 16];
+  const std::size_t len = EncodeTextMessageWithMentionCountSbe(buffer, sizeof(buffer), n);
+  char tmp[256];
+  for (auto _ : state) {
+    MessageHeader hdr;
+    hdr.wrap(buffer, 0, MessageHeader::sbeSchemaVersion(), sizeof(buffer));
+    TextChatMessage dec;
+    dec.wrapForDecode(buffer, MessageHeader::encodedLength(), hdr.blockLength(), hdr.version(), sizeof(buffer));
+    benchmark::DoNotOptimize(dec.messageId());
+    benchmark::DoNotOptimize(dec.quotedMessageId());
+    benchmark::DoNotOptimize(dec.quotedSenderId());
+    auto& mentions = dec.mentionedUserIds();
+    while (mentions.hasNext()) {
+      benchmark::DoNotOptimize(mentions.next().userId());
+    }
+    benchmark::DoNotOptimize(dec.getClientMsgId(tmp, sizeof(tmp)));
+    benchmark::DoNotOptimize(dec.getContentPreview(tmp, sizeof(tmp)));
+    benchmark::DoNotOptimize(dec.getBody(tmp, sizeof(tmp)));
+  }
+  state.counters["bytes"] = static_cast<double>(len);
+}
+BENCHMARK(BM_DecodeMentionsSbe)->Arg(1)->Arg(10)->Arg(100)->Arg(1000);
+
+void BM_EncodeMergedItemsSbe(benchmark::State& state) {
+  const int n = static_cast<int>(state.range(0));
+  static char buffer[1 << 16];
+  std::size_t len = 0;
+  for (auto _ : state) {
+    len = EncodeMergedForwardMessageWithItemCountSbe(buffer, sizeof(buffer), n);
+  }
+  state.counters["bytes"] = static_cast<double>(len);
+}
+BENCHMARK(BM_EncodeMergedItemsSbe)->Arg(1)->Arg(10)->Arg(100)->Arg(1000);
+
+void BM_DecodeMergedItemsSbe(benchmark::State& state) {
+  const int n = static_cast<int>(state.range(0));
+  static char buffer[1 << 16];
+  const std::size_t len = EncodeMergedForwardMessageWithItemCountSbe(buffer, sizeof(buffer), n);
+  char tmp[256];
+  for (auto _ : state) {
+    MessageHeader hdr;
+    hdr.wrap(buffer, 0, MessageHeader::sbeSchemaVersion(), sizeof(buffer));
+    MergedForwardChatMessage dec;
+    dec.wrapForDecode(buffer, MessageHeader::encodedLength(), hdr.blockLength(), hdr.version(), sizeof(buffer));
+    benchmark::DoNotOptimize(dec.messageId());
+    auto& items = dec.items();
+    while (items.hasNext()) {
+      items.next();
+      benchmark::DoNotOptimize(items.messageId());
+      benchmark::DoNotOptimize(items.senderId());
+      benchmark::DoNotOptimize(items.timestampMs());
+      benchmark::DoNotOptimize(items.getBody(tmp, sizeof(tmp)));
+    }
+    benchmark::DoNotOptimize(dec.getClientMsgId(tmp, sizeof(tmp)));
+    benchmark::DoNotOptimize(dec.getTitle(tmp, sizeof(tmp)));
+  }
+  state.counters["bytes"] = static_cast<double>(len);
+}
+BENCHMARK(BM_DecodeMergedItemsSbe)->Arg(1)->Arg(10)->Arg(100)->Arg(1000);
+
 }  // namespace
 
 BENCHMARK_MAIN();
