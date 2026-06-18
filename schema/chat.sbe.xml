@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sbe:messageSchema xmlns:sbe="http://fixprotocol.io/2016/sbe"
+                    package="im_chat_sbe"
+                    id="1"
+                    version="0"
+                    semanticVersion="1.0"
+                    byteOrder="littleEndian">
+  <types>
+    <composite name="messageHeader" description="Message identifiers and length of message root">
+      <type name="blockLength" primitiveType="uint16"/>
+      <type name="templateId" primitiveType="uint16"/>
+      <type name="schemaId" primitiveType="uint16"/>
+      <type name="version" primitiveType="uint16"/>
+    </composite>
+    <composite name="groupSizeEncoding" description="Repeating group dimensions (uint16 count to support up to 1000-element sweeps)">
+      <type name="blockLength" primitiveType="uint16"/>
+      <type name="numInGroup" primitiveType="uint16" semanticType="NumInGroup"/>
+    </composite>
+    <composite name="varStringEncoding">
+      <type name="length" primitiveType="uint32" maxValue="1073741824"/>
+      <type name="varData" primitiveType="uint8" length="0" characterEncoding="UTF-8"/>
+    </composite>
+    <enum name="ConversationType" encodingType="uint8">
+      <validValue name="UNSPECIFIED">0</validValue>
+      <validValue name="SINGLE">1</validValue>
+      <validValue name="GROUP">2</validValue>
+      <validValue name="CHANNEL">3</validValue>
+    </enum>
+    <enum name="MessageStatus" encodingType="uint8">
+      <validValue name="UNSPECIFIED">0</validValue>
+      <validValue name="SENDING">1</validValue>
+      <validValue name="SENT">2</validValue>
+      <validValue name="DELIVERED">3</validValue>
+      <validValue name="READ">4</validValue>
+      <validValue name="FAILED">5</validValue>
+      <validValue name="RECALLED">6</validValue>
+    </enum>
+  </types>
+
+  <sbe:message name="TextChatMessage" id="1">
+    <field name="messageId" id="1" type="int64"/>
+    <field name="conversationId" id="2" type="int64"/>
+    <field name="conversationType" id="3" type="ConversationType"/>
+    <field name="senderId" id="4" type="int64"/>
+    <field name="seq" id="5" type="int64"/>
+    <field name="clientTimestampMs" id="6" type="int64"/>
+    <field name="serverTimestampMs" id="7" type="int64"/>
+    <field name="status" id="8" type="MessageStatus"/>
+    <field name="quotedMessageId" id="9" type="int64" presence="optional"/>
+    <field name="quotedSenderId" id="10" type="int64" presence="optional"/>
+    <group name="mentionedUserIds" id="11" dimensionType="groupSizeEncoding">
+      <field name="userId" id="12" type="int64"/>
+    </group>
+    <data name="clientMsgId" id="13" type="varStringEncoding"/>
+    <data name="contentPreview" id="14" type="varStringEncoding"/>
+    <data name="body" id="15" type="varStringEncoding"/>
+  </sbe:message>
+
+  <sbe:message name="MergedForwardChatMessage" id="2">
+    <field name="messageId" id="1" type="int64"/>
+    <field name="conversationId" id="2" type="int64"/>
+    <field name="conversationType" id="3" type="ConversationType"/>
+    <field name="senderId" id="4" type="int64"/>
+    <field name="seq" id="5" type="int64"/>
+    <field name="clientTimestampMs" id="6" type="int64"/>
+    <field name="serverTimestampMs" id="7" type="int64"/>
+    <field name="status" id="8" type="MessageStatus"/>
+    <group name="items" id="9" dimensionType="groupSizeEncoding">
+      <field name="messageId" id="10" type="int64"/>
+      <field name="senderId" id="11" type="int64"/>
+      <field name="timestampMs" id="12" type="int64"/>
+      <data name="body" id="13" type="varStringEncoding"/>
+    </group>
+    <data name="clientMsgId" id="14" type="varStringEncoding"/>
+    <data name="title" id="15" type="varStringEncoding"/>
+  </sbe:message>
+</sbe:messageSchema>
