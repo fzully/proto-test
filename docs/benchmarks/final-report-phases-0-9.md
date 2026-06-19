@@ -67,14 +67,20 @@ Packed scalar repeated fields are extremely cheap per element (just writing/read
 
 ## Phase 4 — Memory Allocations / Arena Comparison
 
-Compared default heap-allocated parsing vs a long-lived, **never-reset** `google::protobuf::Arena` reused across the whole benchmark run.
+Compared default heap-allocated parsing vs a long-lived, **never-reset** `google::protobuf::Arena` reused across the whole benchmark run, plus two reset-cadence variants — `Reset()` after every single parse, and `Reset()` every 10 parses — to test whether adding the textbook "reset cadence" actually delivers the documented win, and whether batching the reset closes any gap.
 
 | Benchmark | Time (ns/iter) | Allocs/iter | Bytes/iter (malloc'd) |
 |---|---|---|---|
 | BM_ParseTextHeapAllocs | 191.64 | 9.00 | 301.00 |
-| BM_ParseTextArenaAllocs | 220.74 | 3.01 | 486.32 |
+| BM_ParseTextArenaAllocs (never reset) | 220.74 | 3.01 | 486.32 |
+| BM_ParseTextArenaReset10Allocs (reset every 10 parses) | 192.61 | 3.60 | 910.60 |
+| BM_ParseTextArenaResetAllocs (reset every parse) | 188.18 | 6.00 | 1101.00 |
 
-Arena cuts `malloc` calls ~3x (9→3.01) by bump-allocating the top-level message and its `QuoteInfo` submessage out of existing arena memory instead of `new`-ing each one. But because this benchmark deliberately never calls `Reset()`, the arena's memory only ever grows — it has to keep fetching new, larger, cold-memory blocks, and `Arena::Create<T>`'s per-call bookkeeping has its own cost. Net effect: Arena is *slower* here (220.7ns vs 191.6ns, +15%), not faster. **This is a deliberate, informative negative result**, not a bug: it shows Arena's documented benefit assumes a reset/reuse cadence (e.g. one arena per request, reset between requests) — an arena that only grows forfeits memory reuse without removing per-call overhead.
+Arena cuts `malloc` calls ~3x (9→3.01) by bump-allocating the top-level message and its `QuoteInfo` submessage out of existing arena memory instead of `new`-ing each one. But because the never-reset benchmark deliberately never calls `Reset()`, the arena's memory only ever grows — it has to keep fetching new, larger, cold-memory blocks, and `Arena::Create<T>`'s per-call bookkeeping has its own cost. Net effect: Arena is *slower* here (220.7ns vs 191.6ns, +15%), not faster. **This is a deliberate, informative negative result**, not a bug: it shows Arena's documented benefit assumes a reset/reuse cadence (e.g. one arena per request, reset between requests) — an arena that only grows forfeits memory reuse without removing per-call overhead.
+
+Adding `Reset()` does not simply fix this — resetting after *every* parse makes allocation counts *worse* (6.00 allocs/iter and 1101 bytes/iter, both higher than the never-reset variant), even though it brings latency down to roughly heap-path levels (188.2ns). The reason is internal to protobuf's `Arena`: every `Reset()` assigns the arena a new "lifecycle id," which invalidates the per-thread fast-path cache that lets repeated `Arena::Create<T>` calls skip straight to bump allocation. Resetting after every parse means every parse pays the slow re-registration path that the never-reset variant only pays once.
+
+Batching the reset to every 10 parses helps but still doesn't close the gap: `allocs_per_iter` drops 40% versus reset-every-parse (6.00 → 3.60) and `bytes_per_iter` drops 17% (1101 → 910.6), but both remain above the never-reset baseline (3.01 / 486.32). The cost-per-`Reset()`-event (allocs × batch size) roughly doubles from batch-1 to batch-10 (6.00 → 36.00 total), so the reset tax isn't a flat one-time cost that simply gets amortized over more messages — something in `Reset()`'s own bookkeeping (`CleanupList()`/`Free()`) scales with how much was allocated since the last reset. **Takeaway:** none of the three Arena variants tested beat plain heap allocation outright on this message shape and access pattern (one small `text` message in/out at a time); `Reset()` only pays for itself at some coarser-than-10 batch size, a different (larger, more sub-object-heavy) message shape, or both. See `docs/benchmarks/phase4-memory-arena-analysis.md` for the full mechanism writeup.
 
 ## Phase 5 — Serialization API Overhead
 
@@ -97,7 +103,7 @@ A fresh `std::string` allocation costs ~9.6% more than reusing one via `.clear()
 
 1/2/4/8/16/20 independent threads (no shared state, no locks in the benchmarked code), measuring aggregate throughput.
 
-| Threads | Serialize aggregate (ops/sec) | Serialize scaling ratio | Parse aggregate (ops/sec) | Parse scaling ratio |
+| Threads | Serialize aggregate (ops/sec) | Serialize scaling ratio | Parse (heap) aggregate (ops/sec) | Parse (heap) scaling ratio |
 |---|---|---|---|---|
 | 1 | 13,172,661 | 1.00 | 5,102,884 | 1.00 |
 | 2 | 26,481,638 | 2.01 | 2,905,831 | **0.57** |
@@ -107,6 +113,23 @@ A fresh `std::string` allocation costs ~9.6% more than reusing one via `.clear()
 | 20 | 177,219,044 | 13.45 | 5,645,058 | 1.11 |
 
 Serialize (allocation-light, reused buffer) scales reasonably (67% efficiency at 20 threads — likely turbo-boost frequency throttling under full core load, not contention). Parse (which needs ~9 heap allocations per call — see Phase 4) scales *badly*: at 2 threads, aggregate throughput **drops below the single-thread baseline** (ratio 0.57) and only crosses back above 1.0x at 20 threads. **This is the most actionable cross-phase finding in the whole suite**: even with zero shared state in application code, an allocation-heavy workload turns the global heap allocator into a hidden shared resource, and that contention can make adding threads actively counterproductive at low concurrency. It directly strengthens the case for Phase 4's Arena exploration — a per-thread or per-connection Arena would remove parse's dependency on the global allocator and should scale far closer to serialize's curve.
+
+### Does a per-thread Arena actually fix this?
+
+`BM_ConcurrentParseTextArena` tests the prediction directly: each benchmark thread gets its own long-lived, never-reset `google::protobuf::Arena` (mirroring `BM_ParseTextArenaAllocs` from Phase 4, the never-reset variant — chosen because it was the cheapest of the three reset cadences tested there once Reset()'s lifecycle-id tax is factored out of the picture), reused for the entire timed loop, with zero sharing across threads.
+
+| Threads | Parse (heap) aggregate (ops/sec) | Parse (heap) ratio (vs its own 1-thread) | Parse (Arena) aggregate (ops/sec) | Parse (Arena) ratio (vs its own 1-thread) | Arena vs heap, same thread count |
+|---|---|---|---|---|---|
+| 1 | 5,029,919 | 1.00 | 4,498,290 | 1.00 | 0.89x (Arena slower) |
+| 2 | 3,471,238 | 0.69 | 7,757,650 | 1.73 | 2.24x |
+| 4 | 3,398,124 | 0.68 | 9,969,083 | 2.22 | 2.93x |
+| 8 | 4,033,400 | 0.80 | 10,304,663 | 2.29 | 2.55x |
+| 16 | 4,558,275 | 0.91 | 10,937,667 | 2.43 | 2.40x |
+| 20 | 4,863,837 | 0.97 | 11,580,251 | 2.58 | 2.38x |
+
+(This run's absolute heap numbers differ slightly from the table above — same qualitative pattern, re-measured on the same host at a different time, included here for an apples-to-apples Arena comparison.)
+
+The improvement is exactly what the Phase 4/7 cross-reference predicted, and it's large. At 1 thread, the per-thread Arena is ~11% *slower* than heap — the same never-reset bookkeeping tax Phase 4 already found (no concurrency benefit to offset it yet). But from 2 threads on, Arena wins by 2.2x-2.9x at the *same* thread count, and that gap doesn't shrink as thread count rises — if anything it's largest at 4 threads (2.93x) and settles around 2.4x at high thread counts. More strikingly: **heap parsing never recovers to its own 1-thread throughput even at 20 threads** (ratio 0.97, still below 1.0), while Arena's *worst* multi-threaded result (2 threads: 7.76M ops/sec) already beats heap's *best* result at any thread count tested (20 threads: 4.86M ops/sec) by 1.6x. The mechanism is the same one Phase 4 identified for the never-reset arena, just inverted into a benefit here: each thread's Arena almost never calls into the global allocator after warm-up (no cross-thread malloc/free contention), so the parse path stops depending on a resource that's secretly shared across all 20 threads (glibc's per-thread arena pool, its `mmap`/`brk` bookkeeping). **This is the strongest, most unambiguous win for Arena anywhere in this benchmark suite** — it confirms that Arena's real-world case is concurrency/allocator-contention relief, not single-threaded latency, which is exactly where Phase 4's single-threaded tests came up empty.
 
 ## Phase 8 — Malformed-Input Parse Failure Cost
 
@@ -138,7 +161,7 @@ The real speedups (1.51x-4.20x) are well below the pre-implementation estimate, 
 1. **Repeated message fields are the most expensive schema construct measured** (Phase 3) — 30-100x more per-element cost than packed repeated scalars. If a schema choice exists between "many scalar values" and "many small sub-messages," prefer the former for hot paths.
 2. **Parsing is consistently 2-3x more expensive than serializing** (Phases 1, 3) for the same logical message, across both message shapes tested — largely attributable to per-call heap allocation (Phase 4 quantifies ~9 `malloc` calls for a single `text` parse).
 3. **Heap allocation is the dominant hidden cost in this benchmark suite**, surfacing in three independent phases: Phase 4 (allocation count/bytes), Phase 5 (fresh-string allocation tax), and most dramatically Phase 7 (multithreaded allocator contention degrading parse throughput below single-threaded baseline at low concurrency).
-4. **Arena allocation is not a free win** — it only helps when paired with a reset/reuse discipline (Phase 4's never-reset arena was slower, not faster, than the heap path it was meant to replace). Any future adoption should benchmark the specific reset cadence intended for production use, not assume the textbook benefit transfers unconditionally.
+4. **Arena allocation is not a single-threaded win, but it is a decisive concurrency win.** All single-threaded Arena variants tested in Phase 4 (never-reset, reset-every-parse, reset-every-10) ended up slower or no better than plain heap allocation for one small `text` message at a time — "just add `Reset()`" is not a free fix either, since resetting too finely defeats Arena's per-thread fast-path cache. But Phase 7's per-thread-Arena retest flips the picture entirely: from 2 threads up, a per-thread never-reset Arena beats heap-allocated parsing by 2.2x-2.9x in aggregate throughput at the same thread count, and heap parsing never even recovers to its own 1-thread baseline through 20 threads, while Arena's worst multithreaded result already beats heap's best. **The lesson: Arena's real payoff in this suite is relieving global-allocator contention under concurrency, not improving single-threaded latency** — benchmark the concurrency profile you actually care about, not just single-call latency, before deciding Arena isn't worth it.
 5. **"Zero-copy" stream-based serialization APIs are not unconditionally faster than simpler flat-buffer APIs** (Phase 5) — for small, fully-buffered payloads, the streaming abstraction's virtual dispatch overhead can outweigh its allocation savings. `SerializeToArray` into a preallocated buffer was the fastest of all four serialize paths tested.
 6. **No asymmetric DoS surface was found in the two malformed-input shapes tested** (Phase 8) — rejecting bad input was always cheaper than accepting good input, in both the "well-formed-prefix-then-truncated" and "immediately-garbled" failure modes.
 7. **Phase 6 (CPU microarchitecture counters) could not be run in this sandbox** due to `perf_event_paranoid=4` and no privilege-escalation path; this is an environment constraint, not a result, and is flagged for follow-up if the suite is ever run with elevated privileges.

@@ -221,6 +221,58 @@ void BM_ParseTextArenaAllocs(benchmark::State& state) {
 }
 BENCHMARK(BM_ParseTextArenaAllocs);
 
+void BM_ParseTextArenaResetAllocs(benchmark::State& state) {
+  ChatMessage original = BuildTextMessage();
+  std::string bytes;
+  static_cast<void>(original.SerializeToString(&bytes));
+
+  google::protobuf::Arena arena;
+  {
+    ChatMessage* warm = google::protobuf::Arena::Create<ChatMessage>(&arena);
+    static_cast<void>(warm->ParseFromString(bytes));
+    arena.Reset();
+  }
+  ResetAllocCounters();
+  for (auto _ : state) {
+    ChatMessage* parsed = google::protobuf::Arena::Create<ChatMessage>(&arena);
+    static_cast<void>(parsed->ParseFromString(bytes));
+    arena.Reset();
+  }
+  state.counters["allocs_per_iter"] =
+      static_cast<double>(GetAllocCount()) / static_cast<double>(state.iterations());
+  state.counters["bytes_per_iter"] =
+      static_cast<double>(GetAllocBytes()) / static_cast<double>(state.iterations());
+}
+BENCHMARK(BM_ParseTextArenaResetAllocs);
+
+void BM_ParseTextArenaReset10Allocs(benchmark::State& state) {
+  ChatMessage original = BuildTextMessage();
+  std::string bytes;
+  static_cast<void>(original.SerializeToString(&bytes));
+
+  google::protobuf::Arena arena;
+  {
+    ChatMessage* warm = google::protobuf::Arena::Create<ChatMessage>(&arena);
+    static_cast<void>(warm->ParseFromString(bytes));
+    arena.Reset();
+  }
+  ResetAllocCounters();
+  int batch = 0;
+  for (auto _ : state) {
+    ChatMessage* parsed = google::protobuf::Arena::Create<ChatMessage>(&arena);
+    static_cast<void>(parsed->ParseFromString(bytes));
+    if (++batch == 10) {
+      arena.Reset();
+      batch = 0;
+    }
+  }
+  state.counters["allocs_per_iter"] =
+      static_cast<double>(GetAllocCount()) / static_cast<double>(state.iterations());
+  state.counters["bytes_per_iter"] =
+      static_cast<double>(GetAllocBytes()) / static_cast<double>(state.iterations());
+}
+BENCHMARK(BM_ParseTextArenaReset10Allocs);
+
 void BM_SerializeToFreshString(benchmark::State& state) {
   ChatMessage msg = BuildTextMessage();
   std::size_t last_size = 0;
@@ -280,6 +332,24 @@ void BM_ConcurrentParseText(benchmark::State& state) {
   state.counters["bytes"] = static_cast<double>(bytes.size());
 }
 BENCHMARK(BM_ConcurrentParseText)->Threads(1)->Threads(2)->Threads(4)->Threads(8)->Threads(16)->Threads(20);
+
+void BM_ConcurrentParseTextArena(benchmark::State& state) {
+  ChatMessage original = BuildTextMessage();
+  std::string bytes;
+  static_cast<void>(original.SerializeToString(&bytes));
+
+  google::protobuf::Arena arena;
+  {
+    ChatMessage* warm = google::protobuf::Arena::Create<ChatMessage>(&arena);
+    static_cast<void>(warm->ParseFromString(bytes));
+  }
+  for (auto _ : state) {
+    ChatMessage* parsed = google::protobuf::Arena::Create<ChatMessage>(&arena);
+    static_cast<void>(parsed->ParseFromString(bytes));
+  }
+  state.counters["bytes"] = static_cast<double>(bytes.size());
+}
+BENCHMARK(BM_ConcurrentParseTextArena)->Threads(1)->Threads(2)->Threads(4)->Threads(8)->Threads(16)->Threads(20);
 
 void BM_ParseTruncatedText(benchmark::State& state) {
   ChatMessage original = BuildTextMessage();
