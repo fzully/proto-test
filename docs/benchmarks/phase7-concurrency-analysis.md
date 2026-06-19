@@ -17,6 +17,15 @@ Each thread builds its own local `ChatMessage`/`std::string` — no shared mutab
 | 16 | 98.92 | 161,741,472 | 12.28 | 16 |
 | 20 | 112.85 | 177,219,044 | 13.45 | 20 |
 
+```mermaid
+xychart-beta
+    title "Scaling ratio vs thread count (1.0 = same throughput as 1 thread)"
+    x-axis ["1", "2", "4", "8", "16", "20"]
+    y-axis "Scaling ratio" 0 --> 14
+    line [1.00, 2.01, 3.97, 7.02, 12.28, 13.45]
+    line [1.00, 0.57, 0.73, 0.76, 0.91, 1.11]
+```
+
 ## Parse (`BM_ConcurrentParseText`, fresh heap-allocated `ChatMessage` per call)
 
 | Threads | real_time (ns/iter) | Aggregate throughput (ops/sec) | Scaling ratio | Ideal |
@@ -48,6 +57,17 @@ Phase 4 tested Arena single-threaded and found no variant (never-reset, reset-ev
 | 8 | 4,033,400 | 0.80 | 10,304,663 | 2.29 | 2.55x |
 | 16 | 4,558,275 | 0.91 | 10,937,667 | 2.43 | 2.40x |
 | 20 | 4,863,837 | 0.97 | 11,580,251 | 2.58 | 2.38x |
+
+```mermaid
+xychart-beta
+    title "Aggregate parse throughput vs thread count: heap allocation vs per-thread Arena"
+    x-axis ["1", "2", "4", "8", "16", "20"]
+    y-axis "Aggregate throughput (M ops/sec)" 0 --> 12
+    line [5.03, 3.47, 3.40, 4.03, 4.56, 4.86]
+    line [4.50, 7.76, 9.97, 10.30, 10.94, 11.58]
+```
+
+Reading it left to right: at 1 thread Heap and Arena are close (5.03M vs 4.50M, Arena slightly behind); from 2 threads on, the Arena line pulls decisively above the Heap line, and the gap widens fast then holds — the crossover described in the numbers above.
 
 (Heap numbers here come from a same-session rerun of `BM_ConcurrentParseText` alongside the new Arena benchmark, for an apples-to-apples comparison; absolute values differ slightly from the table above due to normal run-to-run host noise, but the qualitative pattern — heap collapsing at low thread counts, slowly recovering — is the same.)
 

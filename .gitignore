@@ -1,1 +1,5 @@
 build/
+# Added by code-review-graph
+.code-review-graph/
+.cursor/mcp.json
+.mcp.json

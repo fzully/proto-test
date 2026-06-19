@@ -46,6 +46,9 @@ target_include_directories(chat_proto PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/generat
 add_executable(proto_test src/main.cpp src/message_fixtures.cpp src/sbe_message_fixtures.cpp)
 target_link_libraries(proto_test PRIVATE chat_proto)
 
+add_executable(reflection_demo src/reflection_demo.cpp src/message_fixtures.cpp)
+target_link_libraries(reflection_demo PRIVATE chat_proto)
+
 FetchContent_Declare(
   benchmark
   GIT_REPOSITORY https://github.com/google/benchmark.git
