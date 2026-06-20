@@ -1,3 +1,10 @@
+// Archived, excluded from the build (no longer referenced by CMakeLists.txt).
+// chat.proto now sets `optimize_for = LITE_RUNTIME`, so generated ChatMessage
+// no longer derives from google::protobuf::Message and has no
+// GetReflection()/GetDescriptor(), and there is no DynamicMessageFactory
+// support either. Kept only as a reference for what full-runtime reflection
+// looked like before the lite switch.
+#if 0
 // Demonstrates google::protobuf reflection: walking a message's fields
 // purely through its Descriptor/Reflection, without switching on the
 // generated C++ class. The same PrintMessage() works both on a normal
@@ -214,3 +221,4 @@ int main() {
 
   return 0;
 }
+#endif  // 0

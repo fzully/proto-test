@@ -28,7 +28,10 @@ include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
 # proto_bench can link the same compiled protobuf code instead of running
 # protoc twice.
 add_library(chat_proto STATIC)
-target_link_libraries(chat_proto PUBLIC protobuf::libprotobuf)
+# protobuf's own cmake/libprotobuf-lite.cmake links utf8_validity PRIVATE
+# (libprotobuf.cmake links it PUBLIC), so its include dir for
+# utf8_validity.h doesn't propagate from libprotobuf-lite alone.
+target_link_libraries(chat_proto PUBLIC protobuf::libprotobuf-lite utf8_validity)
 
 # protobuf_generate() invokes protoc with --cpp_out pointed at this directory
 # but does not create it itself, so it must exist before the build runs.
@@ -45,9 +48,6 @@ target_include_directories(chat_proto PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/generat
 
 add_executable(proto_test src/main.cpp src/message_fixtures.cpp src/sbe_message_fixtures.cpp)
 target_link_libraries(proto_test PRIVATE chat_proto)
-
-add_executable(reflection_demo src/reflection_demo.cpp src/message_fixtures.cpp)
-target_link_libraries(reflection_demo PRIVATE chat_proto)
 
 FetchContent_Declare(
   benchmark

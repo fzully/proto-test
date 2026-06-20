@@ -2,6 +2,12 @@ syntax = "proto3";
 
 package im.chat.v1;
 
+// Drops Descriptor/Reflection/DynamicMessage support in exchange for a
+// smaller chat.pb.cc and no descriptor-pool registration at static init.
+// See src/reflection_demo.cpp (archived, excluded from the build) for what
+// this gives up.
+option optimize_for = LITE_RUNTIME;
+
 // ---- Enums ----
 
 enum ConversationType {
