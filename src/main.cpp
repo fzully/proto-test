@@ -13,6 +13,7 @@
 #include "json_message_decoded.h"
 #include "json_nlohmann_fixtures.h"
 #include "json_rapidjson_fixtures.h"
+#include "json_yyjson_fixtures.h"
 
 using im::chat::v1::ChatMessage;
 
@@ -382,6 +383,63 @@ void TestJsonRapidjsonMergedForwardRoundTrip() {
             << json_text.size() << " bytes\n";
 }
 
+void TestJsonYyjsonTextRoundTrip() {
+  ChatMessage original = BuildTextMessage();
+
+  std::string json_text = json_yyjson::EncodeTextMessageJson();
+  DecodedTextMessage decoded = json_yyjson::DecodeTextMessageJson(json_text);
+
+  assert(decoded.message_id == original.message_id());
+  assert(decoded.client_msg_id == original.client_msg_id());
+  assert(decoded.conversation_id == original.conversation_id());
+  assert(decoded.conversation_type == "CONVERSATION_TYPE_GROUP");
+  assert(decoded.sender_id == original.sender_id());
+  assert(decoded.seq == original.seq());
+  assert(decoded.client_timestamp_ms == original.client_timestamp_ms());
+  assert(decoded.server_timestamp_ms == original.server_timestamp_ms());
+  assert(decoded.status == "MESSAGE_STATUS_SENT");
+  assert(decoded.quoted_message_id == original.quote().quoted_message_id());
+  assert(decoded.quoted_sender_id == original.quote().quoted_sender_id());
+  assert(decoded.content_preview == original.quote().content_preview());
+  assert(decoded.mentioned_user_ids.size() == 2);
+  assert(decoded.mentioned_user_ids[0] == original.mentioned_user_ids(0));
+  assert(decoded.mentioned_user_ids[1] == original.mentioned_user_ids(1));
+  assert(decoded.body == original.text().body());
+
+  std::cout << "TestJsonYyjsonTextRoundTrip passed, encoded size = " << json_text.size()
+            << " bytes\n";
+}
+
+void TestJsonYyjsonMergedForwardRoundTrip() {
+  ChatMessage original = BuildMergedForwardMessage();
+
+  std::string json_text = json_yyjson::EncodeMergedForwardMessageJson();
+  DecodedMergedForwardMessage decoded = json_yyjson::DecodeMergedForwardMessageJson(json_text);
+
+  assert(decoded.message_id == original.message_id());
+  assert(decoded.client_msg_id == original.client_msg_id());
+  assert(decoded.conversation_id == original.conversation_id());
+  assert(decoded.conversation_type == "CONVERSATION_TYPE_SINGLE");
+  assert(decoded.sender_id == original.sender_id());
+  assert(decoded.seq == original.seq());
+  assert(decoded.client_timestamp_ms == original.client_timestamp_ms());
+  assert(decoded.server_timestamp_ms == original.server_timestamp_ms());
+  assert(decoded.status == "MESSAGE_STATUS_SENT");
+  assert(decoded.title == original.merged_forward().title());
+  assert(decoded.items.size() == 2);
+  assert(decoded.items[0].message_id == original.merged_forward().items(0).message_id());
+  assert(decoded.items[0].sender_id == original.merged_forward().items(0).sender_id());
+  assert(decoded.items[0].timestamp_ms == original.merged_forward().items(0).timestamp_ms());
+  assert(decoded.items[0].body == original.merged_forward().items(0).text().body());
+  assert(decoded.items[1].message_id == original.merged_forward().items(1).message_id());
+  assert(decoded.items[1].sender_id == original.merged_forward().items(1).sender_id());
+  assert(decoded.items[1].timestamp_ms == original.merged_forward().items(1).timestamp_ms());
+  assert(decoded.items[1].body == original.merged_forward().items(1).text().body());
+
+  std::cout << "TestJsonYyjsonMergedForwardRoundTrip passed, encoded size = "
+            << json_text.size() << " bytes\n";
+}
+
 }  // namespace
 
 int main() {
@@ -402,5 +460,9 @@ int main() {
   TestJsonRapidjsonTextRoundTrip();
   TestJsonRapidjsonMergedForwardRoundTrip();
   std::cout << "All RapidJSON round-trip tests passed.\n";
+
+  TestJsonYyjsonTextRoundTrip();
+  TestJsonYyjsonMergedForwardRoundTrip();
+  std::cout << "All yyjson round-trip tests passed.\n";
   return 0;
 }
