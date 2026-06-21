@@ -105,3 +105,54 @@ add_dependencies(chat_sbe generate_chat_sbe)
 
 target_link_libraries(proto_test PRIVATE chat_sbe)
 target_link_libraries(proto_bench PRIVATE chat_sbe)
+
+# ---- Phase 10: JSON library shootout (nlohmann/json, RapidJSON, yyjson, cJSON) ----
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+  nlohmann_json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG v3.12.0
+  GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
+FetchContent_Declare(
+  rapidjson
+  GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
+  GIT_TAG v1.1.0
+  GIT_SHALLOW TRUE
+)
+set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "" FORCE)
+set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(rapidjson)
+# RapidJSON's own CMakeLists.txt does not export a consumable target (its
+# include_directories() call is scoped to its own subdirectory only), so we
+# add its include path manually below.
+
+FetchContent_Declare(
+  yyjson
+  GIT_REPOSITORY https://github.com/ibireme/yyjson.git
+  GIT_TAG 0.12.0
+  GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(yyjson)
+
+FetchContent_Declare(
+  cjson
+  GIT_REPOSITORY https://github.com/DaveGamble/cJSON.git
+  GIT_TAG v1.7.19
+  GIT_SHALLOW TRUE
+)
+set(ENABLE_CJSON_TEST OFF CACHE BOOL "" FORCE)
+set(ENABLE_CJSON_UTILS OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(cjson)
+# cJSON's CMakeLists.txt does not call target_include_directories() on its
+# own target, so we add ${cjson_SOURCE_DIR} manually below (cJSON.h sits at
+# the repo root, so the include is "cJSON.h", not "cjson/cJSON.h").
+
+target_include_directories(proto_test PRIVATE ${rapidjson_SOURCE_DIR}/include ${cjson_SOURCE_DIR})
+target_include_directories(proto_bench PRIVATE ${rapidjson_SOURCE_DIR}/include ${cjson_SOURCE_DIR})
+target_link_libraries(proto_test PRIVATE nlohmann_json::nlohmann_json yyjson cjson)
+target_link_libraries(proto_bench PRIVATE nlohmann_json::nlohmann_json yyjson cjson)
