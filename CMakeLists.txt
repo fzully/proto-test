@@ -46,7 +46,7 @@ protobuf_generate(
 
 target_include_directories(chat_proto PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/generated)
 
-add_executable(proto_test src/main.cpp src/message_fixtures.cpp src/sbe_message_fixtures.cpp src/json_nlohmann_fixtures.cpp src/json_rapidjson_fixtures.cpp src/json_yyjson_fixtures.cpp)
+add_executable(proto_test src/main.cpp src/message_fixtures.cpp src/sbe_message_fixtures.cpp src/json_nlohmann_fixtures.cpp src/json_rapidjson_fixtures.cpp src/json_yyjson_fixtures.cpp src/json_cjson_fixtures.cpp)
 target_link_libraries(proto_test PRIVATE chat_proto)
 
 FetchContent_Declare(
@@ -59,7 +59,7 @@ set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(benchmark)
 
-add_executable(proto_bench src/bench.cpp src/message_fixtures.cpp src/alloc_counter.cpp src/sbe_message_fixtures.cpp src/json_nlohmann_fixtures.cpp src/json_rapidjson_fixtures.cpp src/json_yyjson_fixtures.cpp)
+add_executable(proto_bench src/bench.cpp src/message_fixtures.cpp src/alloc_counter.cpp src/sbe_message_fixtures.cpp src/json_nlohmann_fixtures.cpp src/json_rapidjson_fixtures.cpp src/json_yyjson_fixtures.cpp src/json_cjson_fixtures.cpp)
 target_link_libraries(proto_bench PRIVATE chat_proto benchmark::benchmark)
 
 find_package(Java REQUIRED COMPONENTS Runtime)
