@@ -1,9 +1,9 @@
-# Protobuf IM-Chat Benchmark Suite — Final Report (Phases 0-10)
+# Protobuf IM-Chat Benchmark Suite — Final Report (Phases 0-11)
 
-Date: 2026-06-18 (Phase 9 added 2026-06-19; Phase 10 added 2026-06-20)
+Date: 2026-06-18 (Phase 9 added 2026-06-19; Phase 10 added 2026-06-20; Phase 11 added 2026-06-21)
 Repository: `proto-test` (`im.chat.v1` protobuf schema, C++20, CMake + FetchContent, Google Benchmark v1.9.1, protobuf v35.1)
 
-This report consolidates every benchmark phase run in this project: infrastructure, throughput/latency/size, field-fill-rate, numeric encoding, scalability, memory/Arena allocation, serialization API overhead, concurrency scaling, malformed-input parse cost, a Protobuf-vs-SBE comparison, and a JSON-library shootout. Phase 6 (CPU microarchitecture counters via `perf`) was found infeasible in this sandbox and is documented as skipped rather than faked.
+This report consolidates every benchmark phase run in this project: infrastructure, throughput/latency/size, field-fill-rate, numeric encoding, scalability, memory/Arena allocation, serialization API overhead, concurrency scaling, malformed-input parse cost, a Protobuf-vs-SBE comparison, a JSON-library shootout, and a yyjson-vs-Protobuf PK. Phase 6 (CPU microarchitecture counters via `perf`) was found infeasible in this sandbox and is documented as skipped rather than faked.
 
 All raw data lives in `results/phaseN-*.json`; all phase-specific analysis lives in `docs/benchmarks/phaseN-*.md`. This document is the synthesis across all of them — read it first, drill into the per-phase docs for full detail.
 
@@ -167,6 +167,19 @@ The real speedups (1.51x-4.20x) are well below the pre-implementation estimate, 
 
 `yyjson` wins decisively: 2.26x faster than 2nd-place RapidJSON and 10.8x faster than last-place nlohmann/json, matching yyjson's own marketing claim of being the fastest C/C++ JSON library by a margin large enough that it isn't noise. The more counter-intuitive result is cJSON: despite being the oldest and simplest of the four libraries (plain C, no SIMD, no arena allocator), it beats nlohmann/json by 2.84x on total time (4575.36 ns vs 13008.57 ns) — nlohmann/json's modern, ergonomic API comes from a `std::map`-backed DOM with heavy type-erasure and exception-driven parsing, and that overhead makes it slower than all three other libraries on every single one of the 8 encode/decode measurements, not just on average. `yyjson` is carried forward as the JSON library used for the Phase 11 vs-Protobuf comparison.
 
+## Phase 11 — yyjson vs Protobuf PK
+
+Head-to-head between Protobuf and `yyjson` (Phase 10's winner) on the same `text` and `merged_forward` logical message content, reusing Phase 1's 4 Protobuf benchmarks and Phase 10's 4 yyjson benchmarks unchanged — no new code was written for this phase. Full detail is in `docs/benchmarks/phase11-yyjson-protobuf-pk-analysis.md`.
+
+| Shape | Format | Encode (ns) | Decode (ns) | Bytes |
+|---|---|---|---|---|
+| TextMessage | Protobuf | 73.67 | 191.10 | 117 |
+| TextMessage | yyjson | 159.98 | 454.22 | 408 |
+| MergedForwardMessage | Protobuf | 104.97 | 316.25 | 162 |
+| MergedForwardMessage | yyjson | 203.16 | 474.80 | 500 |
+
+Protobuf wins every single metric on both shapes — there is no yyjson win to report here. On TextMessage, Protobuf is 2.17x faster encoding, 2.38x faster decoding, and 3.49x smaller on the wire. On MergedForwardMessage, Protobuf is 1.94x faster encoding, 1.50x faster decoding, and 3.09x smaller on the wire. The margins are not a single uniform multiplier: they range 1.50x-3.49x depending on metric and shape, and notably the decode advantage *narrows* on the MergedForwardMessage shape (1.50x) compared to TextMessage (2.38x) — i.e. yyjson's relative decode penalty shrinks as repeated-field load increases, consistent with this project's earlier finding that repeated fields are the most expensive schema construct (Phase 3) and impose extra decode cost on both formats, just proportionally less on yyjson's side here.
+
 ---
 
 ## Cross-cutting takeaways
@@ -180,6 +193,7 @@ The real speedups (1.51x-4.20x) are well below the pre-implementation estimate, 
 7. **Phase 6 (CPU microarchitecture counters) could not be run in this sandbox** due to `perf_event_paranoid=4` and no privilege-escalation path; this is an environment constraint, not a result, and is flagged for follow-up if the suite is ever run with elevated privileges.
 8. **SBE beats Protobuf on single-threaded CPU time but not by the margin originally guessed, and not unconditionally** (Phase 9) — measured speedups are 1.51x-4.20x (decode benefiting more than encode), far below the 5-30x pre-implementation estimate, and SBE pays for that speed with 35-50% larger messages on the wire for these specific payloads (no varint compaction). SBE decode also scales far better under concurrency (near-linear, vs Protobuf decode's collapse to 0.07x at 20 threads), but SBE *encode* surprisingly scales worse than Protobuf encode at high thread counts (0.04x vs 0.67x at 20 threads) — a reproducible, independently-verified result attributed to machine-level saturation rather than a structural flaw, reported honestly rather than smoothed into a "SBE is just better" narrative.
 9. **Among 4 JSON libraries benchmarked head-to-head, `yyjson` wins decisively** (Phase 10) — 1203.82 ns total encode+decode time across both shapes, 2.26x faster than runner-up RapidJSON (2717.31 ns) and 10.8x faster than last-place nlohmann/json (13008.57 ns). `yyjson` is the library carried forward into Phase 11's Protobuf comparison.
+10. **Protobuf beats even the fastest JSON library (`yyjson`) on every metric, but not by a single uniform margin** (Phase 11) — on TextMessage, Protobuf is 2.17x faster encoding, 2.38x faster decoding, and 3.49x smaller on the wire; on MergedForwardMessage, 1.94x faster encoding, 1.50x faster decoding, and 3.09x smaller. The margins range 1.50x-3.49x by metric/shape rather than collapsing to one number, and the decode advantage notably narrows on the repeated-field-heavy MergedForwardMessage shape (1.50x) versus TextMessage (2.38x) — consistent with this suite's repeated finding that repeated fields are the most expensive schema construct, here showing up as a proportionally smaller relative penalty for yyjson than for Protobuf as repeated-field load increases.
 
 ## File index
 
@@ -195,6 +209,7 @@ The real speedups (1.51x-4.20x) are well below the pre-implementation estimate, 
 | 8 | `docs/superpowers/specs/2026-06-18-benchmark-phase8-design.md` | `docs/superpowers/plans/2026-06-18-benchmark-phase8.md` | `results/phase8-2026-06-18.json` | `docs/benchmarks/phase8-malformed-input-analysis.md` |
 | 9 | `docs/superpowers/specs/2026-06-19-benchmark-phase9-sbe-design.md` | `docs/superpowers/plans/2026-06-19-benchmark-phase9-sbe.md` | `results/phase9-2026-06-19.json` | `docs/benchmarks/phase9-sbe-comparison-analysis.md` |
 | 10 | `docs/superpowers/specs/2026-06-20-benchmark-phase10-json-shootout-design.md` | `docs/superpowers/plans/2026-06-20-benchmark-phase10-json-shootout.md` | `results/phase10-2026-06-20.json` | `docs/benchmarks/phase10-json-shootout-analysis.md` |
+| 11 | `docs/superpowers/specs/2026-06-21-benchmark-phase11-yyjson-protobuf-pk-design.md` | `docs/superpowers/plans/2026-06-21-benchmark-phase11-yyjson-protobuf-pk.md` | `results/phase11-2026-06-21.json` | `docs/benchmarks/phase11-yyjson-protobuf-pk-analysis.md` |
 
 ## Execution note
 
