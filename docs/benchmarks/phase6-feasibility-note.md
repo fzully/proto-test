@@ -1,6 +1,8 @@
-# Phase 6 — CPU Microarchitecture Metrics: Feasibility Check (Skipped)
+# Phase 6 — CPU Microarchitecture Metrics: Feasibility Check (Historical — superseded)
 
 Date: 2026-06-18
+
+**Status update (2026-06-21): no longer skipped.** The user lowered `kernel.perf_event_paranoid` to `2` on this host via `/etc/sysctl.d/99-perf.conf`, which removes the blocker documented below. Phase 6 has since been run for real — see `docs/benchmarks/phase6-cpu-microarch-analysis.md` for the methodology (including a hybrid-CPU pinning adjustment this feasibility check didn't anticipate) and results. This document is kept as a historical record of the original infeasibility finding, not as the current status.
 
 ## Goal (as originally scoped)
 
