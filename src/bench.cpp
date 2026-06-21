@@ -13,6 +13,11 @@
 #include "im_chat_sbe/TextChatMessage.h"
 #include "message_fixtures.h"
 #include "sbe_message_fixtures.h"
+#include "json_cjson_fixtures.h"
+#include "json_message_decoded.h"
+#include "json_nlohmann_fixtures.h"
+#include "json_rapidjson_fixtures.h"
+#include "json_yyjson_fixtures.h"
 
 using im::chat::v1::ChatMessage;
 
@@ -742,6 +747,158 @@ void BM_ConcurrentDecodeTextSbe(benchmark::State& state) {
   state.counters["bytes"] = static_cast<double>(len);
 }
 BENCHMARK(BM_ConcurrentDecodeTextSbe)->Threads(1)->Threads(2)->Threads(4)->Threads(8)->Threads(16)->Threads(20);
+
+void BM_EncodeTextJsonNlohmann(benchmark::State& state) {
+  std::string json_text;
+  for (auto _ : state) {
+    json_text = json_nlohmann::EncodeTextMessageJson();
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_EncodeTextJsonNlohmann);
+
+void BM_DecodeTextJsonNlohmann(benchmark::State& state) {
+  const std::string json_text = json_nlohmann::EncodeTextMessageJson();
+  for (auto _ : state) {
+    DecodedTextMessage msg = json_nlohmann::DecodeTextMessageJson(json_text);
+    benchmark::DoNotOptimize(msg);
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_DecodeTextJsonNlohmann);
+
+void BM_EncodeMergedForwardJsonNlohmann(benchmark::State& state) {
+  std::string json_text;
+  for (auto _ : state) {
+    json_text = json_nlohmann::EncodeMergedForwardMessageJson();
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_EncodeMergedForwardJsonNlohmann);
+
+void BM_DecodeMergedForwardJsonNlohmann(benchmark::State& state) {
+  const std::string json_text = json_nlohmann::EncodeMergedForwardMessageJson();
+  for (auto _ : state) {
+    DecodedMergedForwardMessage msg = json_nlohmann::DecodeMergedForwardMessageJson(json_text);
+    benchmark::DoNotOptimize(msg);
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_DecodeMergedForwardJsonNlohmann);
+
+void BM_EncodeTextJsonRapidjson(benchmark::State& state) {
+  std::string json_text;
+  for (auto _ : state) {
+    json_text = json_rapidjson::EncodeTextMessageJson();
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_EncodeTextJsonRapidjson);
+
+void BM_DecodeTextJsonRapidjson(benchmark::State& state) {
+  const std::string json_text = json_rapidjson::EncodeTextMessageJson();
+  for (auto _ : state) {
+    DecodedTextMessage msg = json_rapidjson::DecodeTextMessageJson(json_text);
+    benchmark::DoNotOptimize(msg);
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_DecodeTextJsonRapidjson);
+
+void BM_EncodeMergedForwardJsonRapidjson(benchmark::State& state) {
+  std::string json_text;
+  for (auto _ : state) {
+    json_text = json_rapidjson::EncodeMergedForwardMessageJson();
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_EncodeMergedForwardJsonRapidjson);
+
+void BM_DecodeMergedForwardJsonRapidjson(benchmark::State& state) {
+  const std::string json_text = json_rapidjson::EncodeMergedForwardMessageJson();
+  for (auto _ : state) {
+    DecodedMergedForwardMessage msg = json_rapidjson::DecodeMergedForwardMessageJson(json_text);
+    benchmark::DoNotOptimize(msg);
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_DecodeMergedForwardJsonRapidjson);
+
+void BM_EncodeTextJsonYyjson(benchmark::State& state) {
+  std::string json_text;
+  for (auto _ : state) {
+    json_text = json_yyjson::EncodeTextMessageJson();
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_EncodeTextJsonYyjson);
+
+void BM_DecodeTextJsonYyjson(benchmark::State& state) {
+  const std::string json_text = json_yyjson::EncodeTextMessageJson();
+  for (auto _ : state) {
+    DecodedTextMessage msg = json_yyjson::DecodeTextMessageJson(json_text);
+    benchmark::DoNotOptimize(msg);
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_DecodeTextJsonYyjson);
+
+void BM_EncodeMergedForwardJsonYyjson(benchmark::State& state) {
+  std::string json_text;
+  for (auto _ : state) {
+    json_text = json_yyjson::EncodeMergedForwardMessageJson();
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_EncodeMergedForwardJsonYyjson);
+
+void BM_DecodeMergedForwardJsonYyjson(benchmark::State& state) {
+  const std::string json_text = json_yyjson::EncodeMergedForwardMessageJson();
+  for (auto _ : state) {
+    DecodedMergedForwardMessage msg = json_yyjson::DecodeMergedForwardMessageJson(json_text);
+    benchmark::DoNotOptimize(msg);
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_DecodeMergedForwardJsonYyjson);
+
+void BM_EncodeTextJsonCJson(benchmark::State& state) {
+  std::string json_text;
+  for (auto _ : state) {
+    json_text = json_cjson::EncodeTextMessageJson();
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_EncodeTextJsonCJson);
+
+void BM_DecodeTextJsonCJson(benchmark::State& state) {
+  const std::string json_text = json_cjson::EncodeTextMessageJson();
+  for (auto _ : state) {
+    DecodedTextMessage msg = json_cjson::DecodeTextMessageJson(json_text);
+    benchmark::DoNotOptimize(msg);
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_DecodeTextJsonCJson);
+
+void BM_EncodeMergedForwardJsonCJson(benchmark::State& state) {
+  std::string json_text;
+  for (auto _ : state) {
+    json_text = json_cjson::EncodeMergedForwardMessageJson();
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_EncodeMergedForwardJsonCJson);
+
+void BM_DecodeMergedForwardJsonCJson(benchmark::State& state) {
+  const std::string json_text = json_cjson::EncodeMergedForwardMessageJson();
+  for (auto _ : state) {
+    DecodedMergedForwardMessage msg = json_cjson::DecodeMergedForwardMessageJson(json_text);
+    benchmark::DoNotOptimize(msg);
+  }
+  state.counters["bytes"] = static_cast<double>(json_text.size());
+}
+BENCHMARK(BM_DecodeMergedForwardJsonCJson);
 
 }  // namespace
 
