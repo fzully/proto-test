@@ -1,9 +1,9 @@
-# Protobuf IM-Chat Benchmark Suite — Final Report (Phases 0-9)
+# Protobuf IM-Chat Benchmark Suite — Final Report (Phases 0-10)
 
-Date: 2026-06-18 (Phase 9 added 2026-06-19)
+Date: 2026-06-18 (Phase 9 added 2026-06-19; Phase 10 added 2026-06-20)
 Repository: `proto-test` (`im.chat.v1` protobuf schema, C++20, CMake + FetchContent, Google Benchmark v1.9.1, protobuf v35.1)
 
-This report consolidates every benchmark phase run in this project: infrastructure, throughput/latency/size, field-fill-rate, numeric encoding, scalability, memory/Arena allocation, serialization API overhead, concurrency scaling, malformed-input parse cost, and a Protobuf-vs-SBE comparison. Phase 6 (CPU microarchitecture counters via `perf`) was found infeasible in this sandbox and is documented as skipped rather than faked.
+This report consolidates every benchmark phase run in this project: infrastructure, throughput/latency/size, field-fill-rate, numeric encoding, scalability, memory/Arena allocation, serialization API overhead, concurrency scaling, malformed-input parse cost, a Protobuf-vs-SBE comparison, and a JSON-library shootout. Phase 6 (CPU microarchitecture counters via `perf`) was found infeasible in this sandbox and is documented as skipped rather than faked.
 
 All raw data lives in `results/phaseN-*.json`; all phase-specific analysis lives in `docs/benchmarks/phaseN-*.md`. This document is the synthesis across all of them — read it first, drill into the per-phase docs for full detail.
 
@@ -154,6 +154,19 @@ Replaced the project's earlier pure estimate (made before any SBE code existed, 
 
 The real speedups (1.51x-4.20x) are well below the pre-implementation estimate, with decode benefiting far more than encode (3.4x-4.2x vs 1.5x-1.7x) — SBE's flyweight decode skips the heap allocation and field-presence dispatch that Protobuf's decode path pays for, while Protobuf's encode path is already comparatively cheap. SBE's decode is also zero-allocation (0 heap allocations/iter vs Protobuf's 9) and scales close to linearly under concurrency (0.89-1.05x ratio from 1 to 20 threads, vs Protobuf decode collapsing to 0.07x at 20 threads). Protobuf's durable advantages are wire size (30-50% smaller here, thanks to varint compaction and optional-field omission — SBE's fixed-width fields are 35-50% *larger* for these messages) and self-describing/self-validating decoding. Counter-intuitively, SBE *encode* (not decode) scales worse than Protobuf encode under heavy concurrency, collapsing to a 0.04x ratio at 20 threads versus Protobuf encode's 0.67x — this was independently re-verified as reproducible rather than a one-off fluke, and is most likely a machine-level saturation effect (memory/cache bandwidth or turbo throttling) to which SBE's ~51ns encode is far more sensitive in relative terms than Protobuf's longer encode, rather than a structural SBE weakness.
 
+## Phase 10 — JSON Library Shootout
+
+4 JSON libraries (nlohmann/json, RapidJSON, yyjson, cJSON) hand-encode/decode the same `text` and `merged_forward` logical message content into JSON (camelCase keys, int64/enum as JSON strings, compact output), ranked by total encode+decode `real_time` summed across both shapes. simdjson was excluded — it has no symmetric high-performance writer, so it cannot be ranked on the same metric as the other 4. Full detail, including the per-shape encode/decode breakdown, is in `docs/benchmarks/phase10-json-shootout-analysis.md`.
+
+| Rank | Library | Total Encode+Decode (ns, both shapes) |
+|---|---|---|
+| 1 | yyjson | 1203.82 |
+| 2 | RapidJSON | 2717.31 |
+| 3 | cJSON | 4575.36 |
+| 4 | nlohmann/json | 13008.57 |
+
+`yyjson` wins decisively: 2.26x faster than 2nd-place RapidJSON and 10.8x faster than last-place nlohmann/json, matching yyjson's own marketing claim of being the fastest C/C++ JSON library by a margin large enough that it isn't noise. The more counter-intuitive result is cJSON: despite being the oldest and simplest of the four libraries (plain C, no SIMD, no arena allocator), it beats nlohmann/json by 2.84x on total time (4575.36 ns vs 13008.57 ns) — nlohmann/json's modern, ergonomic API comes from a `std::map`-backed DOM with heavy type-erasure and exception-driven parsing, and that overhead makes it slower than all three other libraries on every single one of the 8 encode/decode measurements, not just on average. `yyjson` is carried forward as the JSON library used for the Phase 11 vs-Protobuf comparison.
+
 ---
 
 ## Cross-cutting takeaways
@@ -166,6 +179,7 @@ The real speedups (1.51x-4.20x) are well below the pre-implementation estimate, 
 6. **No asymmetric DoS surface was found in the two malformed-input shapes tested** (Phase 8) — rejecting bad input was always cheaper than accepting good input, in both the "well-formed-prefix-then-truncated" and "immediately-garbled" failure modes.
 7. **Phase 6 (CPU microarchitecture counters) could not be run in this sandbox** due to `perf_event_paranoid=4` and no privilege-escalation path; this is an environment constraint, not a result, and is flagged for follow-up if the suite is ever run with elevated privileges.
 8. **SBE beats Protobuf on single-threaded CPU time but not by the margin originally guessed, and not unconditionally** (Phase 9) — measured speedups are 1.51x-4.20x (decode benefiting more than encode), far below the 5-30x pre-implementation estimate, and SBE pays for that speed with 35-50% larger messages on the wire for these specific payloads (no varint compaction). SBE decode also scales far better under concurrency (near-linear, vs Protobuf decode's collapse to 0.07x at 20 threads), but SBE *encode* surprisingly scales worse than Protobuf encode at high thread counts (0.04x vs 0.67x at 20 threads) — a reproducible, independently-verified result attributed to machine-level saturation rather than a structural flaw, reported honestly rather than smoothed into a "SBE is just better" narrative.
+9. **Among 4 JSON libraries benchmarked head-to-head, `yyjson` wins decisively** (Phase 10) — 1203.82 ns total encode+decode time across both shapes, 2.26x faster than runner-up RapidJSON (2717.31 ns) and 10.8x faster than last-place nlohmann/json (13008.57 ns). `yyjson` is the library carried forward into Phase 11's Protobuf comparison.
 
 ## File index
 
@@ -180,6 +194,7 @@ The real speedups (1.51x-4.20x) are well below the pre-implementation estimate, 
 | 7 | `docs/superpowers/specs/2026-06-18-benchmark-phase7-design.md` | `docs/superpowers/plans/2026-06-18-benchmark-phase7.md` | `results/phase7-2026-06-18.json` | `docs/benchmarks/phase7-concurrency-analysis.md` |
 | 8 | `docs/superpowers/specs/2026-06-18-benchmark-phase8-design.md` | `docs/superpowers/plans/2026-06-18-benchmark-phase8.md` | `results/phase8-2026-06-18.json` | `docs/benchmarks/phase8-malformed-input-analysis.md` |
 | 9 | `docs/superpowers/specs/2026-06-19-benchmark-phase9-sbe-design.md` | `docs/superpowers/plans/2026-06-19-benchmark-phase9-sbe.md` | `results/phase9-2026-06-19.json` | `docs/benchmarks/phase9-sbe-comparison-analysis.md` |
+| 10 | `docs/superpowers/specs/2026-06-20-benchmark-phase10-json-shootout-design.md` | `docs/superpowers/plans/2026-06-20-benchmark-phase10-json-shootout.md` | `results/phase10-2026-06-20.json` | `docs/benchmarks/phase10-json-shootout-analysis.md` |
 
 ## Execution note
 
