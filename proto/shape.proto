@@ -1,0 +1,16 @@
+syntax = "proto3";
+package shape.v1;
+option optimize_for = LITE_RUNTIME;
+
+// Each shape is a closed polygon.
+// coords layout: x0, y0, dx1, dy1, dx2, dy2, ...
+// The first pair is absolute; subsequent pairs are deltas from the previous
+// point. sint32 + packed gives zigzag-varint encoding, which is compact for
+// small deltas typical of spatially-local polygon vertices.
+message Shape {
+    repeated sint32 coords = 1 [packed = true];
+}
+
+message ShapeBatch {
+    repeated Shape shapes = 1;
+}

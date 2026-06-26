@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(proto_test CXX)
+project(proto_test CXX C)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -156,3 +156,57 @@ target_include_directories(proto_test PRIVATE ${rapidjson_SOURCE_DIR}/include ${
 target_include_directories(proto_bench PRIVATE ${rapidjson_SOURCE_DIR}/include ${cjson_SOURCE_DIR})
 target_link_libraries(proto_test PRIVATE nlohmann_json::nlohmann_json yyjson cjson)
 target_link_libraries(proto_bench PRIVATE nlohmann_json::nlohmann_json yyjson cjson)
+
+# ---- Phase 12: Shape codec benchmark (Protobuf vs Raw binary vs Raw+LZ4) ----
+
+# LZ4: fetch source and build a minimal static lib directly from lib/lz4.c,
+# bypassing LZ4's own cmake (which varies across versions and adds unneeded targets).
+FetchContent_Declare(
+  lz4
+  GIT_REPOSITORY https://github.com/lz4/lz4.git
+  GIT_TAG v1.10.0
+  GIT_SHALLOW TRUE
+)
+FetchContent_GetProperties(lz4)
+if(NOT lz4_POPULATED)
+  FetchContent_Populate(lz4)
+endif()
+add_library(lz4_lib STATIC ${lz4_SOURCE_DIR}/lib/lz4.c)
+target_include_directories(lz4_lib PUBLIC ${lz4_SOURCE_DIR}/lib)
+
+# shape_proto: generated Protobuf code for shape.proto.
+add_library(shape_proto STATIC)
+target_link_libraries(shape_proto PUBLIC protobuf::libprotobuf-lite utf8_validity)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated-shape)
+protobuf_generate(
+  TARGET shape_proto
+  PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/proto/shape.proto
+  IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/proto
+  PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated-shape
+)
+target_include_directories(shape_proto PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/generated-shape)
+
+add_executable(shape_bench
+  src/shape_bench.cpp
+  src/shape_fixtures.cpp
+)
+target_link_libraries(shape_bench PRIVATE shape_proto benchmark::benchmark lz4_lib)
+
+# shape_full_proto: same schema compiled with optimize_for = SPEED (default),
+# linking libprotobuf (full runtime) instead of libprotobuf-lite.
+add_library(shape_full_proto STATIC)
+target_link_libraries(shape_full_proto PUBLIC protobuf::libprotobuf)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated-shape-full)
+protobuf_generate(
+  TARGET shape_full_proto
+  PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/proto/shape_full.proto
+  IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/proto
+  PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated-shape-full
+)
+target_include_directories(shape_full_proto PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/generated-shape-full)
+
+add_executable(shape_full_bench
+  src/shape_full_bench.cpp
+  src/shape_fixtures.cpp
+)
+target_link_libraries(shape_full_bench PRIVATE shape_full_proto benchmark::benchmark)

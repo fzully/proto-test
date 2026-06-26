@@ -1,0 +1,13 @@
+syntax = "proto3";
+package shape_full.v1;
+// No optimize_for override — defaults to SPEED, which links libprotobuf (full
+// runtime) and generates reflection/descriptor tables alongside the hot-path
+// serialize/parse code. Used to compare against shape.proto's LITE_RUNTIME.
+
+message Shape {
+    repeated sint32 coords = 1 [packed = true];
+}
+
+message ShapeBatch {
+    repeated Shape shapes = 1;
+}
