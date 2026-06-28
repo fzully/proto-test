@@ -40,8 +40,8 @@ namespace raw {
 
 static std::vector<uint8_t> Encode(const std::vector<Shape>& shapes) {
     std::vector<uint8_t> buf;
-    // 4B header + per-shape: 2B count + 6 * 8B coords
-    buf.reserve(4 + shapes.size() * (2 + 6 * 8));
+    // 4B header + per-shape: 2B count + up to 7 * 8B coords
+    buf.reserve(4 + shapes.size() * (2 + 7 * 8));
     BufAppend(buf, static_cast<uint32_t>(shapes.size()));
     for (const auto& s : shapes) {
         BufAppend(buf, static_cast<uint16_t>(s.points.size()));
@@ -265,7 +265,7 @@ namespace rawdelta {
 
 static std::vector<uint8_t> EncodePlain(const std::vector<Shape>& shapes) {
     std::vector<uint8_t> buf;
-    buf.reserve(4 + shapes.size() * (2 + 6 * 8));
+    buf.reserve(4 + shapes.size() * (2 + 7 * 8));
     BufAppend(buf, static_cast<uint32_t>(shapes.size()));
     for (const auto& s : shapes) {
         BufAppend(buf, static_cast<uint16_t>(s.points.size()));
@@ -346,7 +346,7 @@ void BM_Encode_ProtoNoDelta(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(out.size());
 }
-BENCHMARK(BM_Encode_ProtoNoDelta)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Encode_ProtoNoDelta)->Arg(1000)->Arg(2000)->Arg(5000);
 
 void BM_Decode_ProtoNoDelta(benchmark::State& state) {
     const std::vector<Shape> shapes = BuildShapeBatch(static_cast<int32_t>(state.range(0)));
@@ -357,7 +357,7 @@ void BM_Decode_ProtoNoDelta(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(encoded.size());
 }
-BENCHMARK(BM_Decode_ProtoNoDelta)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Decode_ProtoNoDelta)->Arg(1000)->Arg(2000)->Arg(5000);
 
 // ---- Protobuf, with delta ----
 
@@ -370,7 +370,7 @@ void BM_Encode_Protobuf(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(out.size());
 }
-BENCHMARK(BM_Encode_Protobuf)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Encode_Protobuf)->Arg(1000)->Arg(2000)->Arg(5000);
 
 void BM_Decode_Protobuf(benchmark::State& state) {
     const std::vector<Shape> shapes = BuildShapeBatch(static_cast<int32_t>(state.range(0)));
@@ -381,7 +381,7 @@ void BM_Decode_Protobuf(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(encoded.size());
 }
-BENCHMARK(BM_Decode_Protobuf)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Decode_Protobuf)->Arg(1000)->Arg(2000)->Arg(5000);
 
 // ---- Raw binary ----
 
@@ -394,7 +394,7 @@ void BM_Encode_RawBinary(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(out.size());
 }
-BENCHMARK(BM_Encode_RawBinary)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Encode_RawBinary)->Arg(1000)->Arg(2000)->Arg(5000);
 
 void BM_Decode_RawBinary(benchmark::State& state) {
     const std::vector<Shape> shapes = BuildShapeBatch(static_cast<int32_t>(state.range(0)));
@@ -405,7 +405,7 @@ void BM_Decode_RawBinary(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(encoded.size());
 }
-BENCHMARK(BM_Decode_RawBinary)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Decode_RawBinary)->Arg(1000)->Arg(2000)->Arg(5000);
 
 // ---- Raw binary with delta (no compression) ----
 
@@ -418,7 +418,7 @@ void BM_Encode_RawDelta(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(out.size());
 }
-BENCHMARK(BM_Encode_RawDelta)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Encode_RawDelta)->Arg(1000)->Arg(2000)->Arg(5000);
 
 void BM_Decode_RawDelta(benchmark::State& state) {
     const std::vector<Shape> shapes = BuildShapeBatch(static_cast<int32_t>(state.range(0)));
@@ -429,7 +429,7 @@ void BM_Decode_RawDelta(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(encoded.size());
 }
-BENCHMARK(BM_Decode_RawDelta)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Decode_RawDelta)->Arg(1000)->Arg(2000)->Arg(5000);
 
 // ---- Raw binary + LZ4 ----
 
@@ -442,7 +442,7 @@ void BM_Encode_RawLZ4(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(out.size());
 }
-BENCHMARK(BM_Encode_RawLZ4)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Encode_RawLZ4)->Arg(1000)->Arg(2000)->Arg(5000);
 
 void BM_Decode_RawLZ4(benchmark::State& state) {
     const std::vector<Shape> shapes = BuildShapeBatch(static_cast<int32_t>(state.range(0)));
@@ -453,7 +453,7 @@ void BM_Decode_RawLZ4(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(encoded.size());
 }
-BENCHMARK(BM_Decode_RawLZ4)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Decode_RawLZ4)->Arg(1000)->Arg(2000)->Arg(5000);
 
 // ---- Raw binary (delta) + LZ4 ----
 
@@ -466,7 +466,7 @@ void BM_Encode_RawDeltaLZ4(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(out.size());
 }
-BENCHMARK(BM_Encode_RawDeltaLZ4)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Encode_RawDeltaLZ4)->Arg(1000)->Arg(2000)->Arg(5000);
 
 void BM_Decode_RawDeltaLZ4(benchmark::State& state) {
     const std::vector<Shape> shapes = BuildShapeBatch(static_cast<int32_t>(state.range(0)));
@@ -477,7 +477,7 @@ void BM_Decode_RawDeltaLZ4(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(encoded.size());
 }
-BENCHMARK(BM_Decode_RawDeltaLZ4)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Decode_RawDeltaLZ4)->Arg(1000)->Arg(2000)->Arg(5000);
 
 // ---- Protobuf + Arena (new Arena each iteration) ----
 // Arena is created and destroyed inside every loop body.
@@ -494,7 +494,7 @@ void BM_Encode_ProtoArenaPerIter(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(out.size());
 }
-BENCHMARK(BM_Encode_ProtoArenaPerIter)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Encode_ProtoArenaPerIter)->Arg(1000)->Arg(2000)->Arg(5000);
 
 void BM_Decode_ProtoArenaPerIter(benchmark::State& state) {
     const std::vector<Shape> shapes = BuildShapeBatch(static_cast<int32_t>(state.range(0)));
@@ -506,7 +506,7 @@ void BM_Decode_ProtoArenaPerIter(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(encoded.size());
 }
-BENCHMARK(BM_Decode_ProtoArenaPerIter)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Decode_ProtoArenaPerIter)->Arg(1000)->Arg(2000)->Arg(5000);
 
 // ---- Protobuf + Arena reuse (Reset between iterations) ----
 // Arena is created once outside the loop; each iteration calls Reset()
@@ -525,7 +525,7 @@ void BM_Encode_ProtoArenaReuse(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(out.size());
 }
-BENCHMARK(BM_Encode_ProtoArenaReuse)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Encode_ProtoArenaReuse)->Arg(1000)->Arg(2000)->Arg(5000);
 
 void BM_Decode_ProtoArenaReuse(benchmark::State& state) {
     const std::vector<Shape> shapes = BuildShapeBatch(static_cast<int32_t>(state.range(0)));
@@ -537,7 +537,7 @@ void BM_Decode_ProtoArenaReuse(benchmark::State& state) {
     }
     state.counters["encoded_bytes"] = static_cast<double>(encoded.size());
 }
-BENCHMARK(BM_Decode_ProtoArenaReuse)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_Decode_ProtoArenaReuse)->Arg(1000)->Arg(2000)->Arg(5000);
 
 // ---- Fixture build cost ----
 
@@ -547,7 +547,7 @@ void BM_BuildShapeBatch(benchmark::State& state) {
         benchmark::DoNotOptimize(shapes);
     }
 }
-BENCHMARK(BM_BuildShapeBatch)->Arg(10000)->Arg(100000)->Arg(500000);
+BENCHMARK(BM_BuildShapeBatch)->Arg(1000)->Arg(2000)->Arg(5000);
 
 }  // namespace
 
